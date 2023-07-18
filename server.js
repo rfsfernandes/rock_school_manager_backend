@@ -9,15 +9,15 @@ admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://clavedosul-43866-default-rtdb.europe-west1.firebasedatabase.app"
 });
-
-app.get('/', (req, res) => {
-    res.send('Successful response.');
-});
-
 var db = admin.database();
-var ref = db.ref("users");
-ref.on("value", function (snapshot) {
-    console.log(snapshot.val());
+app.get('/users', async function (req, res) {
+    const id = req.query.id
+    console.log(id)
+    var ref = db.ref("users/" + id);
+    ref.on("value", async function (snapshot) {
+        console.log(snapshot.val());
+    });
 });
+
 
 app.listen(3000, () => console.log('Example app is listening on port 3000.'));
