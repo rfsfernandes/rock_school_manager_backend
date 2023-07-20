@@ -1,5 +1,9 @@
 const express = require('express');
 const app = express();
+var bodyParser = require("body-parser");
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+const schedule = require('node-schedule');
 
 var admin = require("firebase-admin");
 
@@ -10,14 +14,78 @@ admin.initializeApp({
     databaseURL: "https://clavedosul-43866-default-rtdb.europe-west1.firebasedatabase.app"
 });
 var db = admin.database();
-app.get('/users', async function (req, res) {
-    const id = req.query.id
-    console.log(id)
-    var ref = db.ref("users/" + id);
-    ref.on("value", async function (snapshot) {
+
+/* cron.schedule("* * * * *", () => {
+    
+}).start(); */
+
+app.post("/deviceRegistration", (req, res) => {
+    var ref = db.ref("device_registration_token");
+    ref.once("value", async function (snapshot) {
+        let newToken = req.body.registration_token;
+        let tokensList = snapshot.val();
+        if (tokensList.includes(newToken)) {
+            res.status(400);
+            res.json({
+                result: "Failure",
+                message: "Token already exists"
+            });
+        } else {
+            let numChildren = parseInt(snapshot.numChildren());
+            let next = (numChildren == 0) ? 0 : numChildren++
+            ref.child("" + next).set(req.body.registration_token, function result(a) {
+                res.status(201);
+                res.json({
+                    result: "Success",
+                    message: "Token registered"
+                });
+            });
+        }
+    });
+})
+
+app.post("/userRegistration", (req, res) => {
+    let body = req.body;
+    var ref = db.ref("users");
+    ref.once("value", async function (snapshot) {
+        let users = snapshot.val()
+        var foundOne = false;
+        if (users != null) {
+            users.forEach(element => {
+                if (element.email == body.email) {
+                    res.status(400);
+                    res.json({
+                        result: "Failure",
+                        message: "User already exists"
+                    });
+                    foundOne = true
+                    return;
+                }
+            });
+        }
+        
+        if (!foundOne) {
+            let numChildren = parseInt(snapshot.numChildren());
+            let next = (numChildren == 0) ? 0 : numChildren++
+            ref.child("" + next).set(req.body, function result(a) {
+                res.status(201);
+                res.json({
+                    result: "Success",
+                    message: "User created"
+                });
+            })
+        }
+
+    });
+})
+
+/* const job = schedule.scheduleJob("* * * * *", function () { https://crontab.guru/examples.html
+    console.log("Check for payments due")
+    var ref = db.ref("users");
+    // ref.on for listening to changes
+    ref.once("value", async function (snapshot) {
         console.log(snapshot.val());
     });
-});
-
+}); */
 
 app.listen(3000, () => console.log('Example app is listening on port 3000.'));
